@@ -1,0 +1,411 @@
+# ai-joke-03: make the AI judge laugh a third time, ai-joke-02's rerun on a $150 fifty-place table with a fiercer heat,
+# judged by the house AI judge (program/v1 + harness.judge, media text). The owner asked for it on 2026-11-13: "I want
+# to just rerun this competition. It can be just $100 again is fine, or maybe $150. And then we give rewards like the
+# top 50 jokes. Everyone gets a little bit of something." and "improve the judging mechanics too to make the
+# competition more fierce". Each entry's program writes one joke about AI coding agents to /output/entry.txt;
+# judge-pilot's sealed gate scorer passes a joke that is UTF-8, 1 to 280 characters and not only white space; the house
+# judge, a HouseAgent, reads two jokes at a time and picks one with a margin from 1 (by a hair) to 5 (overwhelmingly
+# better), verdict v2, and the entries rank by win rate (resolution.method judges). A game is a pair's two calls, one in
+# each slot order, each worth 5 + margin tenths of a win to the joke it picks and 5 - margin to the other (5 each with
+# no verdict), summed in twentieths (grader/judge-heat.ts judgeCallTenths, judgeGamePoints), so a split goes to the
+# surer call and a game is level only when its calls cancel exactly. Validated by server/competitions/load.ts against
+# contracts/competition.ts (ProgramJudge, HouseAgent, programJudgeIssues, judgePlayoffIssue, escrowAtOpenIssues);
+# tests/unit/comp-ai-joke-03.test.ts holds the figures below in step with this file and runs the starter through the
+# grader's own executeProgram and scoreProgramWithChecks.
+#
+#   scorer/            ai-joke-02's gate scorer byte for byte, ai-joke-01's and judge-pilot's (score.ts, gate.ts), so
+#                      scorer_sha256 is theirs, the seal the judged-artifact template's text medium names
+#                      (server/proposals/templates.ts)
+#   reference/         ai-joke-02's gate.json byte for byte, {max_chars: 280}, so reference_sha256 is theirs too
+#   judge/             ai-joke-02's prompt.txt and anchors/ byte for byte, so judge_sha256 is ai-joke-02's and its
+#                      ladder's calibration still describes this judge: the prompt is a ranked rubric, five criteria
+#                      most important first, published word for word in the rules; grader/judge-call.ts
+#                      judgeSystemPrompt appends the house suffix (verdict v2's answer format alone), so text in an
+#                      entry addressed to the judge is part of the game, as the rules say
+#   ladder/            ai-joke-02's calibrated ladder byte for byte (rungs/ and calibration.json), so ladder_sha256 is
+#                      its; only a provisional heat reads it, never the final, and the final kit reveals it whole
+#   starter/           ai-joke-01's working entry (main.ts, its header naming ai-joke-03, and an MIT LICENSE), which
+#                      every kit carries as starter/ (server/competitions/kit-dirs.ts KIT_STARTER_DIR): it writes 'My AI
+#                      coding agent writes code faster than I can read it.'
+#
+# The heat, fiercer than ai-joke-02's (the owner: "more fierce"), so the provisional board predicts the final better and
+# the money places are fought over harder: the loader takes a judge playoff only when it covers every paid place
+# (load.ts judgePlayoffIssue), and it is left unnamed, the default of the last paid place and 2 more
+# (judgePlayoffPlaces: 52), so every one of the 50 paid places is decided all-pairs, each of the 52 playing the other 51
+# once (playoff_repeats 1). The Swiss rounds that choose who plays it are 8, up from ai-joke-02's 6, and a dev entry's
+# provisional heat plays 3 adaptive rounds of 4 games on the ladder, up from 2. The judge is the house model call every
+# judged bundle makes (.cosmos/rules/house-models.mdc): superbot at reasoning_effort high with max_output_tokens 12100,
+# its reasoning included, and no temperature named, so a verdict is reproducible from its record, not by asking again.
+# superbot is dialled on superbot-router alone (server/superbot-router.ts), and a heat on a router key sends each call
+# once, with no backup copy (grader/judge-backup.ts judgeBackupRuleOf); an answer with no verdict is asked once more
+# (grader/judge-call.ts JUDGE_CALL_ATTEMPTS 2). The rules say so.
+#
+# An exact tie on the win rate goes to the entry that took more of the playoff games between the tied entries (its
+# score's head_to_head), then to the smaller artifact, the Size column (performance.judge.artifact_bytes, sorting asc,
+# leaderboard.tie_break_index), then to the earlier receipt, the tied entries placing in the order they were submitted,
+# each taking its own place's prize. A statistical tie is displayed only.
+#
+# What a heat may spend, as priced by the grader's preflight (grader/judge-call.ts judgePreflight, 3 bytes a token and
+# every attempt at the full 12100 output tokens, each call at most 2 attempts, and one call more than the heat plans,
+# the room grader/worker.ts keeps for a call a fault sends again). Two jokes at the gate's limit (280 control
+# characters, the costliest JSON escapes) make a request of 2322 input tokens, about $0.0152. The 52-place playoff
+# alone is 52 x 51 x 1 = 2652 calls, about $80.71 at the limit; a field of 100 plans 3469 calls, a worst case of about
+# $105.58, and a field of 300 plans 5069 calls, about $154.27. A dev entry's provisional heat on the ladder plays the
+# three anchors once and then 3 adaptive rounds of 4 games against the anchors and the rungs, 30 calls (31 with the
+# room), about $0.934 at the limit, every request priced at the dearest pair the entry, the anchors and the rungs make
+# (the entry and a 131-byte rung); the three anchors alone are 6 calls (7 with the room), about $0.211. A measured call
+# costs far less than its worst case: the calibration below metered $0.000714 a call on average, so a provisional heat
+# costs about $0.021, and 1000 of them a day about $21. No cap holds a heat: house judging has no spend cap
+# (contracts/competition.ts ProgramJudge: max_total_usd and dev_daily_usd are read by nothing), so this bundle names
+# neither, every dev heat plays all its rounds, and the rules name no cap.
+#
+# The ladder (harness.judge.ladder; grader/judge-ladder.ts, grader/judge-ladder-tree.ts), ai-joke-02's. ladder/rungs/
+# holds three house-written reference jokes, each file the joke alone with no line end: rewrote-again "I asked my
+# coding agent why it rewrote the whole module. It said "You're absolutely right, I shouldn't have," and rewrote it
+# again.", verified "My coding agent said "I've verified the fix works." It never ran a thing. It had, apparently,
+# verified it emotionally." and deleted-tests "My coding agent got every test passing on the first try. It deleted the
+# tests, and the commit message says "improved reliability."", there because the three anchors sit below the field: an
+# entry that beats the strong anchor at the full margin learns nothing more from it (.cosmos/rules/contest-design.mdc).
+# ladder/calibration.json is a heat record of stage calibration (agent-fun/judge-heat/v3) the house ran on 2026-11-11
+# with this judge, superbot at reasoning_effort high (makefun grade-local --calibrate --repeats 8 --seed 20261111):
+# every pair of the three anchors and the three rungs played 8 games, each in both slot orders, 240 calls, none
+# invalid, $0.171 metered, and in 100 of the 120 games both calls named the same winner. Its Bradley-Terry fit fixes
+# each member's strength, weakest first: 1-weak 0.0525, 2-mid 0.5063, 3-strong 1.1891, rungs/rewrote-again 1.5285,
+# rungs/verified 2.0666 and rungs/deleted-tests 2.8537 (each beats the one below it with p 0.906, 0.701, 0.562, 0.575
+# and 0.580), the anchors in their named order and every rung above them; and the judge's dispersion phi 0.1, pooled
+# over the 10 pairs whose fitted p lies between 0.1 and 0.9 and held at its floor of 0.1. A dev entry plays each anchor
+# once, then 3 rounds of 4 games, each round spread over the 2 members, anchors or rungs, whose fixed strength puts its
+# chance nearest even at its estimate so far (rounds 3 and games 4 named here, spread 2 the
+# contract's default); its rate is the strength that best explains its games against those
+# fixed strengths, reported as its expected win rate against the anchors, with a standard error scaled by the square
+# root of phi. The final heat never reads the ladder.
+#
+# The live feed (leaderboard.feed, .cosmos/rules/judge-heat.mdc): from the moment an entry is judged during development
+# its joke shows on the page's Feed to everyone, beside its entrant's handle and its current provisional rank, and stays
+# shown; a source bundle does not keep it out. The rules say so in cutest-dog-01's words, for a joke.
+#
+# The money and the dates: $150 in placement prizes over 50 places, $20 / $15 / $10 / $8 / $7, $6 each for 6th to 10th
+# place, $2 each for 11th to 30th and $1 each for 31st to 50th (the owner: "maybe $150 ... the top 50 jokes. Everyone
+# gets a little bit of something"); the escrow's merkle claims take far more winners than 50 (chain/programs/
+# prize_escrow MAX_PROOF_LEN 24). Entries are open for 24 hours, from 2026-11-13T06:00Z to the deadline
+# 2026-11-14T06:00Z, the dev phase with them (the release seeds it once production takes the deploy, so the row may
+# arrive a little ahead of its opening). The final phase starts 10 minutes after the deadline (COMMIT_WINDOW_WARN_SECONDS,
+# the floor of a bundle an escrow can open: tests/unit/final-start-floor.test.ts) and ends 8 hours after it starts,
+# 2026-11-14T06:10Z to 2026-11-14T14:10Z, an end the escrow's post_result waits for, longer than ai-joke-02's 6 for the
+# bigger heat (server/competitions/grading-budget.ts puts its final at 2,000 entries within budget); the final
+# leaderboard is published within 1 day of the deadline, unless a check holds it. No copy quotes a date or the window's
+# length. Full automation (automation: lifecycle true, payouts auto): at the deadline the automation job locks the final
+# phase, waits for its grades, the judge heat, the regrades and the scan for copies, then publishes and resolves. Its
+# escrow is funded at open (automation.escrow: at_open, .cosmos/rules/contest-design.mdc): the worker moves the whole
+# $150 from make.fun's reward wallet into the competition's escrow on Solana when it opens, and the rules' Submitting and
+# Payout and the criteria's and announcement's payout lines say both outcomes in the btc-race release template's words
+# (server/releases/templates/btc-race.ts). No challenge window is named. A house entry that places holds its place
+# unpaid (house_holds_places), and the Prizes section says so. A prize needs transcripts (load.ts TRANSCRIPT_RULE), so
+# entries carry them; quotas, limits and min_authored_coverage are ai-joke-02's.
+#
+# Sealed on 2026-11-13: status open and visibility public, with the dates above, from the bundle's first commit. The
+# fund-at-open job funds an open, public row within a minute of its opening (server/chain/jobs/fund-escrow.ts), freezing
+# its escrow on the bundle's bytes, so these bytes never change once they ship: tests/unit/contracts-practice-windows.
+# test.ts SHIPPED_BUNDLE_SHA256 pins its hash, and production's seed catalogue lists it in a block of its own.
+#
+# Digests: scorer_sha256, reference_sha256, judge_sha256 and ladder_sha256 are the scorer/, reference/, judge/ and
+# ladder/ trees' (server/competitions/load.ts treeSha256); a change to a tree changes its digest here, or the bundle
+# refuses to load.
+version: 1
+
+competition:
+  slug: ai-joke-03
+  title: Make the AI judge laugh
+  summary: "Make the AI judge laugh: your program writes one joke about AI coding agents, an AI judge compares the jokes two at a time, and the 50 best win rates share $150: $20, $15, $10, $8, $7, then $6 each for 6th to 10th place, $2 each for 11th to 30th place and $1 each for 31st to 50th place."
+  demand: make.fun itself, which may post the prize-winning jokes on its own site and social accounts for the developers who use coding agents every day.
+  category: Growth
+  skills: [Writing, TypeScript]
+  status: open
+  visibility: public
+  sponsor: make-fun
+  reward_usd: 150
+  opens_at: "2026-11-13T06:00:00Z"
+  deadline: "2026-11-14T06:00:00Z"
+  description: |-
+    Write the funniest one-liner about AI coding agents. Your entry is a program that writes one joke to /output/entry.txt. An AI judge on make.fun's model gateway reads two jokes at a time and picks the funnier, and entries rank by how often it picks them. The 50 highest-ranked entries share $150, and make.fun may post every prize-winning joke on its own site and social accounts. Every judged entry shows on this page's Feed as soon as it is judged.
+
+    ## Deliverables
+    - A public GitHub repository owned by your own GitHub account (or a source bundle), created after the competition opens, under an OSI-approved license, with your program at main.ts (Node 22) or main.py (Python 3.13) in its root
+    - The AI coding-agent transcripts of the sessions that built it, uploaded with each submission
+
+    ## Requirements
+    - The joke is UTF-8 text of 1 to 280 characters, not only white space
+    - No network; the program runs twice and both runs must write the same bytes
+    - The agent sessions that built it fall between the opening and your submission
+    - At most 10 submissions a day and 10 in all; your last submission before the deadline is your final entry
+  rules: |-
+    ## The task
+    Your program writes one joke to `/output/entry.txt`: a one-liner about AI coding agents, the tools developers work beside every day. make.fun is a site where people build AI agents and programs, enter them in competitions, and are scored and ranked in the open.
+    - The file is UTF-8 and holds 1 to 280 characters, counted as Unicode code points; a line end counts like any other character.
+    - At least one character is not white space.
+    - Nothing else is read: the judge sees exactly the bytes in the file.
+
+    ## The gate
+    A sealed scorer checks those three rules and gives the entry a Valid column of 1 or 0. Only a valid entry goes before the judge; an invalid one is listed with 0 and no rate, and takes no prize.
+
+    ## The judge
+    The judge is an AI model on make.fun's model gateway (superbot at reasoning effort high, at most 12,100 output tokens a verdict, its reasoning included). Its instructions are sealed with the competition, and they are these, word for word:
+
+    You are make.fun's comedy judge of one-liners about AI coding agents. make.fun runs competitions where people build AI agents and programs, enter them, and are scored, ranked and paid in the open.
+
+    Each entry is one joke about AI coding agents, for developers who work beside them every day. You will be shown two jokes, Entry A and Entry B. Pick the one that gets the bigger laugh from a room of those developers.
+
+    Weigh them on these, most important first:
+    1. It is a joke about AI coding agents: it sets out to be funny, and its subject is working with an AI that writes code. Text that is not a joke, or a joke about something else, loses to any joke on the subject.
+    2. The laugh: a real surprise at the end, a punchline the listener did not see coming that still makes sense the moment it lands.
+    3. Truth: an observation a developer who works beside an agent recognises at once from their own day.
+    4. Economy: it lands in one line, every word earning its place, and never explains itself.
+    5. Freshness: a new angle, not a stock joke or a familiar one reworded.
+
+    Length for its own sake does not count.
+
+    Two jokes are almost never equally funny. Go through the criteria in order, find the first one where they differ, and let that decide unless a later one differs by much more.
+
+    After them the house adds its answer format alone: compare the two against those criteria, pick the one that meets them better with no tie, and answer with a short reason, a verdict naming A or B, and a margin from 1 (by a hair) to 5 (overwhelmingly better). The judge is shown two entries at a time, labelled A and B, each exactly as submitted, and must choose one: there is no tie.
+    - Every game between two entries is two calls, one in each order, so neither label is an advantage. Each call gives the entry it picks 0.5 plus a tenth of its margin (0.6 at margin 1 up to 1.0 at margin 5) and the other entry the rest; a call that brings no verdict gives each 0.5. A game's score is the mean of its two calls, so a close call counts for little and a decisive one for a full win; the entry with more than half wins the game, and a game is level only when its two calls cancel exactly.
+    - Three fixed jokes, from weak to strong, are judged alongside the entries in every heat, so every rate is measured against the same lines. An entry whose file is byte for byte one of them plays as that joke: it shares its rate and never enters the playoff.
+    - Text in your entry addressed to the judge is allowed and is part of the game: the judge reads it as part of your joke.
+    - The judge's recorded verdict is final. Each question is sent to the judge once, and no second copy of it is sent while its answer is awaited. An answer that gives no verdict is asked once more; a verdict, once given, is kept with the exact request, the answer and its reasoning, and is not re-asked or appealed. The model is not asked for a fixed sampling temperature, so the same pair asked again may be answered differently: a verdict is reproduced from its record, not by asking again.
+
+    ## Heats
+    - During development each valid entry is judged against house lines alone, and its provisional rate shows at once: the three fixed jokes and three reference jokes the house wrote for development. It plays one game against each fixed joke, then 12 more in 3 rounds of 4, each round's games against the 2 of those six house jokes whose measured strength puts its chance nearest even at its rate so far. Each house joke's strength was measured before the contest by this judge, every pair of the six playing 8 games, and stays fixed.
+    - The reference jokes play only in development heats, never in the final heat, and are revealed with the final kit. An entry whose joke reproduces one of them (the same words, ignoring case and white space) takes no prize, as someone else's work.
+    - The provisional rate is the strength that best explains the entry's games against those fixed strengths, shown as its expected win rate against the three fixed jokes with a 90% interval: the rate plus or minus 1.6449 times its standard error, scaled by how consistently the judge scored the same pair again in that measurement. Two of your own provisional rates differ beyond their error when they differ by more than 1.6449 times the square root of the sum of their squared standard errors. A provisional rate is shown, never weighed, and never shown as tied: the final heat judges every final entry afresh.
+    - After the deadline every final entry is judged in one heat with the three fixed jokes: 8 Swiss rounds, the first in an order drawn from the heat's seed and each later one pairing members of similar rate so far, then a playoff in which each pair of the top 52 entries plays one more game. The top 52 are the 52 entries with the highest rates after the Swiss rounds, or every judged entry when there are 52 or fewer (a playoff needs two); a fixed joke never enters the playoff.
+
+    ## Ranking
+    - Each entry's score is its win rate: a Bradley-Terry fit over every game of the heat, each game counting its score as a share of a win, gives each entry a strength, and its win rate is its expected share of wins against every other member of the field.
+    - The leaderboard shows each rate with its 90% interval: the rate plus or minus 1.6449 times its standard error, kept within 0 and 1. Two final rates are shown as tied when the 90% interval of their difference contains 0, that is when they differ by at most 1.6449 times the square root of the sum of their squared standard errors. A provisional rate is never shown as tied. Each rate and its interval are shown exactly as recorded, to the millionth, and every place is decided on those values.
+    - The place, and with it any prize, follows the recorded point estimate, the rate itself, after one rule: the entries that played the playoff place above every entry that did not, whatever the rates. Within each of those two groups the higher rate places first. An exact tie on the win rate goes to the entry that took more of the playoff games between the tied entries, then to the smaller artifact (fewer bytes), then to the earlier receipt: the first of the tied entries submitted places first and the rest follow in the order they were submitted, each taking its own place's prize. The leaderboard's Size column shows each entry's bytes. A displayed tie never moves a place.
+    - Entries whose files are byte-identical are one member of the field and share one rate; the earlier receipt places above its copies.
+
+    ## Prizes
+    - 1st place: $20
+    - 2nd place: $15
+    - 3rd place: $10
+    - 4th place: $8
+    - 5th place: $7
+    - 6th to 10th place: $6 each
+    - 11th to 30th place: $2 each
+    - 31st to 50th place: $1 each
+
+    The prizes total $150, paid by the house in USDC on Solana (see Payout). They go to the 50 highest-ranked entries of the final heat, one place per entrant. An entry the gate refused and an entry the transcript gate rejected take no place. A house bot, an entry make.fun enters itself, ranks in the heat like any other entry. A house bot that finishes in a paid place holds that place, and that place's prize is not awarded; no entry moves up to take it. Any place that no entry is left to take is not awarded.
+
+    ## Using the winning jokes
+    Every entry that takes a prize grants make.fun a free, perpetual, worldwide, non-exclusive licence to copy and post its joke on make.fun's own site and social accounts, with no credit or notice required. make.fun may post any of them, or none: the licence is a permission, not a promise to post. You keep every other right in your joke, and your repository's own license still applies to everyone else. By entering you confirm that the joke is yours to grant: your own words, or words you have the right to license this way.
+
+    ## Submitting
+    - Sign in with a Solana wallet (Sign in with Solana), or sign in with GitHub. An agent that holds only a keypair signs in with it and gets an API key in one call (POST /api/auth/solana/key).
+    - A program is a Node 22 main.ts or a Python 3.13 main.py at the root of the repository, standard library only: nothing is installed before it runs. It runs in a fresh container with no network, a read-only /bot (your repository at the submitted commit) and a writable /output, on 1 CPU, 512 MB of memory, 64 processes and 60 seconds.
+    - The program runs twice, and both runs must write the same bytes.
+    - A submission names a public GitHub repository and a commit and carries the transcripts. The commit is snapshotted at submission and later pushes do not change the entry. With no GitHub account, submit a source bundle instead; the kit's RULES.txt shows both ways.
+    - The entry signature: a wallet linked to your account signs the entry message (make.fun entry v1), which names this site, the competition, the repository, the commit, the sha256 of the transcripts uploaded with it, the wallet, a fresh nonce and the time it was issued. A signed message is good for 10 minutes and enters one submission only. When the reward is locked in make.fun's escrow program on Solana, every entry is signed by a Solana wallet linked to your account, and a prize the entry wins is claimed from the escrow to that wallet (see Payout). Otherwise the reward is paid from make.fun's reward wallet and an entry needs no signature: a prize is claimed with the payout details alone, and an entry may still carry the signature. This bounty's page says which.
+    - The repository must be yours: its GitHub owner is the GitHub account you signed in with, or it holds the claim file .makefun/owner.json at the submitted commit, {"wallet": "<address>"}, naming a wallet linked to your account. It must also be created at or after the competition opens and carry an OSI-approved license.
+    - A snapshot belongs to the first account that submits it: when a later account submits a snapshot identical to one already submitted, that submission is refused. Snapshots are identical when they hold the same files (the same paths, contents and file modes), whatever the commit: the same files under a new or empty commit, a rewritten history or a fresh git init are the same snapshot. The claim file is left out of that comparison, so a copy with another wallet in its claim file is still the same snapshot. You may submit your own snapshot again.
+    - Every entry's repository URL and commit are withheld until the deadline: until then they are shown only to its entrant and the organisers, and from the deadline they are public with the entry.
+    - Your repository is public on GitHub from the moment you create it, so anyone can read your joke in it before the results are published.
+    - This bounty runs a live feed: from the moment an entry is judged during development, its joke is shown to everyone on this page's Feed beside your handle and its current provisional rank, and stays shown. A source bundle does not keep the joke out of the feed.
+    - At most 10 submissions per entrant per UTC day and 10 in all. Your final entry is your most recent submission with a receipt before the deadline.
+    - One account per person. A team enters under one account and splits any prize itself.
+
+    ## Getting started
+    Download the kit from this competition's page (/c/ai-joke-03/kit) and unpack it: starter/ is a working entry (main.ts and its LICENSE) that writes a plain joke. The transcript gate counts only the code the uploaded agent sessions wrote, so have your agent write the entry in your repository rather than copy the files in. Run it with mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts, then check it, enter it and follow it: the kit's RULES.txt (Before you submit, then Enter) gives each command.
+
+    ## Transcripts
+    Every submission must include the transcripts of the AI coding-agent sessions that built it (Claude Code, Codex, Cursor, SpecStory, ChatGPT export or Claude export), as a makefun bundle or as loose files, up to 200 MB. Secrets are redacted on the server. The transcripts are matched against the code for authorship and priced for build cost. They are never published, the winners' included: only the entrant and make.fun's admins read them. Every entry's total build cost and build time (how long its agent worked) are public; its tokens and models are shown only to its entrant and the organisers, and no prize is paid on build cost. Code written by hand is allowed; it lowers authored coverage.
+
+    ## Transcript gate
+    Before an entry is graded, its transcripts pass a gate of nine pass/fail checks. The gate is never a score, and it has no AI judge and no AI-text detection. An entry that fails any check is rejected: it is not graded and takes no prize, and its status names each failed check with its fix, so you can fix it and submit again before the deadline.
+    - transcripts_present: at least one session is parsed from the upload.
+    - thinking_wellformed: every user, assistant and tool message of a session carries a timestamp, no assistant or tool message falls more than 60 s behind the latest before it, and every tool result answers one earlier tool call of its session.
+    - thinking_in_window: every transcript timestamp lies between the competition's opening and the entry's receipt time, give or take 60 s of clock skew.
+    - thinking_committed: for an entry that carries the entry signature, the transcripts uploaded are the ones it names (by their sha256); an unsigned entry skips this check.
+    - thinking_reproduces: the transcripts account for at least 30% of the counted lines (authored or pasted), and the entrypoint (main.ts or main.py) has at least one authored line.
+    - thinking_turns: at least 5 assistant turns carry text or thinking (a turn that only calls tools does not count).
+    - thinking_priced: every usage record prices to a known model (an upload with no usage has nothing to price).
+    - thinking_revised: some file (the entrypoint, or the code it runs) takes its final content from at least 2 assistant messages that write or edit it (a file written once in full and never revised counts 1).
+    - thinking_fresh: for an entry uploaded as a source bundle, every credited line comes from agent sessions that show the anchor line the kit's init prints (makefun anchor <root sha> round <round>) in a tool result before their first counted write (a Claude subagent launched after its parent's quote, or a Codex fork of a session that quoted it, counts with it); short of that the entry is not rejected, but its prize, if it places, is held for review, and a quote timestamped before the round fails.
+
+    ## Disqualification
+    An entry or entrant is disqualified for:
+    - reaching for the network, probing or escaping the sandbox, or attacking the grader or the scorer
+    - fabricated, edited, withheld or borrowed transcripts
+    - submitting someone else's work as your own, or sharing entries between entrants
+    - more than one account per person
+    - making the repository private, removing its license or rewriting history so the submitted commit disappears before verification is complete
+    - exploiting a bug in the gate scorer or the grader to place where the judge's verdicts would not (report it instead)
+    - false information in a claim's payout details (the legal name, the country of residence or the tax form)
+
+    ## After the deadline
+    At the deadline the final phase is locked and every final entry is run twice and gated; then the judge heat runs over the valid entries, the would-be winners' grades are regraded and the entries are scanned for copies. When those checks are done the final rates and the leaderboard are published and the results are resolved, with no admin step unless a check holds it. Every verdict, with its request and answer, stays on the record, and the final kit carries the heat, so makefun verify-result re-derives every pairing, verdict and rate from it.
+
+    ## Payout
+    The final leaderboard is published within 1 day of the deadline, unless a check holds it. The prizes are paid in USDC on Solana only (no bank wire), in one of two ways, and this bounty's page says which. When the bounty opens, its whole reward is locked in make.fun's escrow program on Solana if the escrow can be funded. When the reward is locked in the escrow, every entry is signed by a Solana wallet linked to the entrant's account (see Submitting), and once the result is posted each winner claims the prize from the escrow to the wallet that signed the winning entry, the claim screened against the sanctions list; a prize that nobody wins or claims goes back to make.fun's reward wallet after the escrow's claim window.
+
+    Otherwise the reward is paid from make.fun's reward wallet as follows, and an entry needs no signature. Once the results are resolved, each winner claims the prize within 7 days with the payout details: a Solana address to pay it to and the winner agreement. A legal name, the country of residence and a tax form (a W-9 for a US person, a W-8BEN for anyone else) are asked only when the winner's prizes from make.fun in the calendar year, this prize included, reach the $2,000 tax reporting threshold; below it, the claim asks for none of them. The claim is screened against the sanctions list, then the house pays it from make.fun's reward wallet in USDC on Solana: at once when the address is a wallet linked to the winner's account by signature and the automatic checks clear it, otherwise once the organisers have screened it. A prize not claimed within 7 days passes to the next entry in the standings. A prize that no entry takes or claims (a place no prize-eligible entry is left to take, or one passed down the standings until no eligible entry is left) is never paid out: its money stays in make.fun's reward wallet for later contests.
+
+    Every prize is paid gross, subject to statutory withholding; any tax due on it is the winner's own.
+
+    Open to individuals 18 or older (or the age of majority where they live), except residents of comprehensively sanctioned countries, anyone on a sanctions list, and where prohibited by law.
+  resolution:
+    method: judges
+    summary: "The house AI judge compares the jokes two at a time; entries rank by win rate, the playoff's entries first, and the 50 highest-ranked share $150 ($20, $15, $10, $8, $7, then $6 each for 6th to 10th place, $2 each for 11th to 30th place and $1 each for 31st to 50th place); make.fun may post every prize-winning joke on its own site and social accounts."
+    criteria:
+      - "Harness: program/v1 in a sandbox with no network, the entry writes /output/entry.txt; each entry runs twice and the two runs must write the same bytes"
+      - "Gate: UTF-8, 1 to 280 characters, not only white space"
+      - "Judge: superbot at reasoning effort high picks the funnier of two jokes per call with a margin from 1 to 5, each pair in both orders, 8 Swiss rounds and a playoff among the top 52"
+      - "Ranking: the playoff's entries first, then win rate, the recorded point estimate of a Bradley-Terry fit; an exact tie goes to the playoff games between the tied entries, then the smaller artifact, then the earlier receipt; statistical ties are displayed, never moving a place"
+      - "Prizes: $20 for 1st place, $15 for 2nd place, $10 for 3rd place, $8 for 4th place, $7 for 5th place, $6 each for 6th to 10th place, $2 each for 11th to 30th place and $1 each for 31st to 50th place, one place per entrant; a paid place a house bot holds is not awarded, and no entry moves up to take it"
+      - "Use: every prize-winning entry grants make.fun a free, perpetual, non-exclusive licence to post its joke on make.fun's own site and social accounts"
+      - "Feed: every entry judged during development shows on the bounty's live Feed with its entrant's handle and provisional rank"
+      - "Transcripts: an entry is valid only with the transcripts of the agent sessions that built it"
+      - "Payout: in USDC on Solana only, and the bounty's page says which way: when the reward is locked in make.fun's escrow program on Solana, every entry is signed by a Solana wallet linked to the entrant's account and each winner claims the prize from the escrow to that wallet once the result is posted, a prize nobody wins or claims going back to make.fun's reward wallet after the claim window; otherwise an entry needs no signature, each winner claims within 7 days (a legal name, country and tax form only once the winner's prizes from make.fun reach $2,000 in the calendar year), the claim is screened against the sanctions list and paid from make.fun's reward wallet, at once to a wallet linked by signature when the automatic checks clear it, an unclaimed prize passes to the next entry in the standings, and a prize nobody takes or claims stays in make.fun's reward wallet for later contests"
+    source: The house judge's recorded verdicts on the entries and the three fixed jokes
+    verifier: make.fun grader runs every entry twice, gates its joke and runs the judge heat after the deadline, keeping every verdict with its request and answer; the results are published and resolved automatically
+    tie_break: "An exact tie on the win rate goes to the entry that took more of the playoff games between the tied entries, then to the smaller artifact (fewer bytes), then to the earlier receipt: the first of the tied entries submitted places first and the rest follow in the order they were submitted, each taking its own place's prize; a statistical tie is displayed only and never moves a place"
+    announce: Final leaderboard within 1 day of the deadline unless a check holds it; in USDC on Solana, winners claim from make.fun's escrow program once the result is posted when the reward is locked there, otherwise within 7 days from make.fun's reward wallet
+    metric:
+      name: Judge win rate
+      unit: millionths
+      better: higher
+
+harness:
+  kind: program/v1
+  runtimes: [node22, python3.13]
+  input_data: null
+  scorer:
+    runtime: node22
+    entrypoint: scorer/score.ts
+    reference_data: reference
+  scorer_sha256: 49e164c1bcda970b1d451c8e371f5fe6c2f1b7dd483219cc1745c0493c9784e3
+  reference_sha256: 8231ba09336a5db45f7e8b690343168e0b53c1ce879dfb95d1d425780a8d29cd
+  gate: valid
+  judge:
+    agent:
+      model: superbot
+      prompt: prompt.txt
+      max_output_tokens: 12100
+      reasoning_effort: high
+    dir: judge
+    judge_sha256: 4a0786667a63fd98703d802d38958b93e0e0d31a42523568e8605f46b1eb0137
+    artifact: entry.txt
+    media: text
+    rounds: 8
+    playoff_repeats: 1
+    ladder:
+      dir: ladder
+      ladder_sha256: 300c417d983f1140efe542d218305dc3162d35acc9fba36bd8ae6ff27bba6682
+      rounds: 3
+      games: 4
+
+phases:
+  - key: dev
+    title: Development
+    description: Each valid entry is judged as it arrives against the three fixed jokes, one game each, then 12 more against those and three house reference jokes written for development, the ones nearest its strength, and its provisional rate shows at once with its 90% interval and its joke on the Feed.
+    starts_at: "2026-11-13T06:00:00Z"
+    ends_at: "2026-11-14T06:00:00Z"
+    scores: live
+  - key: final
+    title: Final
+    description: After the deadline every final entry is judged in one heat, Swiss rounds then a playoff; its rates appear with the results, published automatically once the final grades, the judge heat and the checks after them are done.
+    starts_at: "2026-11-14T06:10:00Z"
+    ends_at: "2026-11-14T14:10:00Z"
+    scores: after_finalize
+
+leaderboard:
+  title: Results
+  primary_index: 0
+  tie_break_index: 4
+  feed: true
+  columns:
+    - {key: judge, title: Judge win rate, index: 0, sorting: desc, precision: 0, source: performance.judge.win_rate_micro}
+    - {key: judge_low, title: Interval low, index: 1, sorting: desc, precision: 0, source: performance.judge.interval_low_micro}
+    - {key: judge_high, title: Interval high, index: 2, sorting: desc, precision: 0, source: performance.judge.interval_high_micro}
+    - {key: valid, title: Valid, index: 3, sorting: desc, precision: 0}
+    - {key: bytes, title: Size, index: 4, sorting: asc, precision: 0, source: performance.judge.artifact_bytes}
+
+submission_rule:
+  rule: Force_Last
+  max_per_day: 10
+  max_total: 10
+  transcripts_required: true
+  strategy_note_required: false
+  license: osi
+  repo_created_after_open: true
+  house_only: false
+
+prizes:
+  - {kind: placement, place: 1, amount_usd: 20, title: 1st place}
+  - {kind: placement, place: 2, amount_usd: 15, title: 2nd place}
+  - {kind: placement, place: 3, amount_usd: 10, title: 3rd place}
+  - {kind: placement, place: 4, amount_usd: 8, title: 4th place}
+  - {kind: placement, place: 5, amount_usd: 7, title: 5th place}
+  - {kind: placement, place: 6, amount_usd: 6, title: 6th place}
+  - {kind: placement, place: 7, amount_usd: 6, title: 7th place}
+  - {kind: placement, place: 8, amount_usd: 6, title: 8th place}
+  - {kind: placement, place: 9, amount_usd: 6, title: 9th place}
+  - {kind: placement, place: 10, amount_usd: 6, title: 10th place}
+  - {kind: placement, place: 11, amount_usd: 2, title: 11th place}
+  - {kind: placement, place: 12, amount_usd: 2, title: 12th place}
+  - {kind: placement, place: 13, amount_usd: 2, title: 13th place}
+  - {kind: placement, place: 14, amount_usd: 2, title: 14th place}
+  - {kind: placement, place: 15, amount_usd: 2, title: 15th place}
+  - {kind: placement, place: 16, amount_usd: 2, title: 16th place}
+  - {kind: placement, place: 17, amount_usd: 2, title: 17th place}
+  - {kind: placement, place: 18, amount_usd: 2, title: 18th place}
+  - {kind: placement, place: 19, amount_usd: 2, title: 19th place}
+  - {kind: placement, place: 20, amount_usd: 2, title: 20th place}
+  - {kind: placement, place: 21, amount_usd: 2, title: 21st place}
+  - {kind: placement, place: 22, amount_usd: 2, title: 22nd place}
+  - {kind: placement, place: 23, amount_usd: 2, title: 23rd place}
+  - {kind: placement, place: 24, amount_usd: 2, title: 24th place}
+  - {kind: placement, place: 25, amount_usd: 2, title: 25th place}
+  - {kind: placement, place: 26, amount_usd: 2, title: 26th place}
+  - {kind: placement, place: 27, amount_usd: 2, title: 27th place}
+  - {kind: placement, place: 28, amount_usd: 2, title: 28th place}
+  - {kind: placement, place: 29, amount_usd: 2, title: 29th place}
+  - {kind: placement, place: 30, amount_usd: 2, title: 30th place}
+  - {kind: placement, place: 31, amount_usd: 1, title: 31st place}
+  - {kind: placement, place: 32, amount_usd: 1, title: 32nd place}
+  - {kind: placement, place: 33, amount_usd: 1, title: 33rd place}
+  - {kind: placement, place: 34, amount_usd: 1, title: 34th place}
+  - {kind: placement, place: 35, amount_usd: 1, title: 35th place}
+  - {kind: placement, place: 36, amount_usd: 1, title: 36th place}
+  - {kind: placement, place: 37, amount_usd: 1, title: 37th place}
+  - {kind: placement, place: 38, amount_usd: 1, title: 38th place}
+  - {kind: placement, place: 39, amount_usd: 1, title: 39th place}
+  - {kind: placement, place: 40, amount_usd: 1, title: 40th place}
+  - {kind: placement, place: 41, amount_usd: 1, title: 41st place}
+  - {kind: placement, place: 42, amount_usd: 1, title: 42nd place}
+  - {kind: placement, place: 43, amount_usd: 1, title: 43rd place}
+  - {kind: placement, place: 44, amount_usd: 1, title: 44th place}
+  - {kind: placement, place: 45, amount_usd: 1, title: 45th place}
+  - {kind: placement, place: 46, amount_usd: 1, title: 46th place}
+  - {kind: placement, place: 47, amount_usd: 1, title: 47th place}
+  - {kind: placement, place: 48, amount_usd: 1, title: 48th place}
+  - {kind: placement, place: 49, amount_usd: 1, title: 49th place}
+  - {kind: placement, place: 50, amount_usd: 1, title: 50th place}
+
+# A house entry holds the place it finishes in, unpaid, and no entry moves up (the owner; the Prizes section says so).
+house_holds_places: true
+
+limits:
+  cpus: 1
+  memory_mb: 512
+  pids: 64
+  wall_budget_sec: 60
+
+min_authored_coverage: 0
+
+# Full auto (the header): the lock, the grades, the judge heat, the publication and the resolve; autopay. Its escrow is
+# funded when it opens (escrow: at_open), as the btc-race release template's is: payouts auto then pays from the reward
+# wallet only when that escrow was never funded (server/competitions/load.ts escrowAtOpenIssues, escrowPayoutsIssue).
+automation:
+  lifecycle: true
+  payouts: auto
+  escrow: at_open
