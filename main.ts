@@ -1,0 +1,1 @@
+My AI agent spent three hours optimizing code, only to declare the best solution was a career change.
